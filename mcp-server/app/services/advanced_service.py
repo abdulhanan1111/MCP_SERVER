@@ -98,11 +98,17 @@ class AdvancedService:
                     f'find "{root_path}" -type f'
                 ),
             }
+        tool_request = {
+            "tool": "filesystem.list",
+            "path": root_path,
+            "mode": mode,
+        }
         return {
             "requirement_id": requirement_id,
             "snapshot_id": snapshot_id,
             "instructions": instructions,
             "mode": mode,
+            "tool_request": tool_request,
             "next_step": "Run the command on the client machine and call submit_project_snapshot with the file list.",
         }
 
@@ -196,6 +202,11 @@ class AdvancedService:
             "request_id": request_id,
             "reason": reason or "Need targeted files to improve analysis.",
             "instructions": instructions,
+            "tool_request": {
+                "tool": "filesystem.list",
+                "paths": paths,
+                "note": "Use filesystem connector to list only these paths if they exist.",
+            },
             "next_step": "Call submit_project_files with a list of relevant file paths.",
         }
 
@@ -238,6 +249,11 @@ class AdvancedService:
             "request_id": request_id,
             "reason": reason or "Need specific file content to refine analysis.",
             "instructions": instructions,
+            "tool_request": {
+                "tool": "filesystem.read",
+                "paths": paths,
+                "note": "Use filesystem connector to read requested file contents.",
+            },
             "next_step": "Call submit_file_contents with a map of path -> content.",
         }
 
