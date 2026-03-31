@@ -2,3 +2,4 @@ fastmcp
 pydantic
 pydantic-settings
 python-dotenv
+httpx

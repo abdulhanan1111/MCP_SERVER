@@ -138,6 +138,17 @@ def init_db() -> None:
             )
             """
         )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS project_snapshots (
+                id TEXT PRIMARY KEY,
+                requirement_id TEXT,
+                root_path TEXT,
+                file_list_json TEXT,
+                created_at TEXT
+            )
+            """
+        )
         conn.commit()
 
 
@@ -364,9 +375,61 @@ def create_audit_log(log_id: str, action: str, details: Dict[str, Any]) -> Dict[
     return {"audit_id": log_id, "action": action, "details": details, "created_at": now}
 
 
+def create_project_snapshot(
+    snapshot_id: str,
+    requirement_id: str | None,
+    root_path: str,
+    file_list: list[str],
+) -> Dict[str, Any]:
+    now = _now_iso()
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO project_snapshots (id, requirement_id, root_path, file_list_json, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (snapshot_id, requirement_id, root_path, json.dumps(file_list), now),
+        )
+        conn.commit()
+    return {
+        "snapshot_id": snapshot_id,
+        "requirement_id": requirement_id,
+        "root_path": root_path,
+        "file_list": file_list,
+        "created_at": now,
+    }
+
+
+def update_project_snapshot(snapshot_id: str, file_list: list[str]) -> Optional[Dict[str, Any]]:
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE project_snapshots SET file_list_json = ? WHERE id = ?",
+            (json.dumps(file_list), snapshot_id),
+        )
+        conn.commit()
+    return get_project_snapshot(snapshot_id)
+
+
+def get_project_snapshot(snapshot_id: str) -> Optional[Dict[str, Any]]:
+    with _connect() as conn:
+        cur = conn.execute("SELECT * FROM project_snapshots WHERE id = ?", (snapshot_id,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        return _row_to_dict(row)
+
+
 def _row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
     data = dict(row)
-    for key in ("components_json", "steps_json", "risk_factors_json", "clarifications_json", "answers_json", "details_json"):
+    for key in (
+        "components_json",
+        "steps_json",
+        "risk_factors_json",
+        "clarifications_json",
+        "answers_json",
+        "details_json",
+        "file_list_json",
+    ):
         if key in data and data[key]:
             try:
                 data[key] = json.loads(data[key])

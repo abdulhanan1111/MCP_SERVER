@@ -125,3 +125,12 @@ class GenerateTestsRequest(BaseModel):
 
 class EnforcePolicyRequest(BaseModel):
     plan_id: str
+
+# --- Client Snapshot Schemas ---
+class RequestProjectSnapshot(BaseModel):
+    requirement_id: str
+    root_path: str
+
+class SubmitProjectSnapshot(BaseModel):
+    snapshot_id: str
+    file_list: List[str]
