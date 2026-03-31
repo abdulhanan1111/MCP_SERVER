@@ -22,12 +22,27 @@ def _ensure_db_dir(path: str) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
 
+def _is_writable(path: str) -> bool:
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        test_file = os.path.join(os.path.dirname(path), ".write_test")
+        with open(test_file, "w", encoding="utf-8") as handle:
+            handle.write("ok")
+        os.remove(test_file)
+        return True
+    except Exception:
+        return False
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
 def _connect() -> sqlite3.Connection:
     path = _resolve_db_path()
+    if not _is_writable(path):
+        fallback = os.path.join(os.path.abspath(os.getenv("TMP", "/tmp")), "mcp.db")
+        path = fallback
     _ensure_db_dir(path)
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
