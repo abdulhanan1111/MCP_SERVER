@@ -130,7 +130,33 @@ class EnforcePolicyRequest(BaseModel):
 class RequestProjectSnapshot(BaseModel):
     requirement_id: str
     root_path: str
+    mode: Optional[str] = "full"
 
 class SubmitProjectSnapshot(BaseModel):
     snapshot_id: str
     file_list: List[str]
+
+class StartProjectInterview(BaseModel):
+    requirement_id: str
+
+class SubmitProjectInterview(BaseModel):
+    requirement_id: str
+    answers: Dict[str, str]
+
+class RequestProjectFiles(BaseModel):
+    requirement_id: str
+    reason: Optional[str] = None
+    suggested_paths: Optional[List[str]] = None
+
+class SubmitProjectFiles(BaseModel):
+    requirement_id: str
+    files: List[str]
+
+class RequestFileContents(BaseModel):
+    requirement_id: str
+    paths: List[str]
+    reason: Optional[str] = None
+
+class SubmitFileContents(BaseModel):
+    requirement_id: str
+    files: Dict[str, str]

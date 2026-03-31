@@ -149,6 +149,28 @@ def init_db() -> None:
             )
             """
         )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS file_requests (
+                id TEXT PRIMARY KEY,
+                requirement_id TEXT,
+                request_type TEXT,
+                paths_json TEXT,
+                created_at TEXT
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS file_contents (
+                id TEXT PRIMARY KEY,
+                requirement_id TEXT,
+                path TEXT,
+                content TEXT,
+                created_at TEXT
+            )
+            """
+        )
         conn.commit()
 
 
@@ -410,6 +432,55 @@ def update_project_snapshot(snapshot_id: str, file_list: list[str]) -> Optional[
     return get_project_snapshot(snapshot_id)
 
 
+def create_file_request(
+    request_id: str,
+    requirement_id: str,
+    request_type: str,
+    paths: list[str],
+) -> Dict[str, Any]:
+    now = _now_iso()
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO file_requests (id, requirement_id, request_type, paths_json, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (request_id, requirement_id, request_type, json.dumps(paths), now),
+        )
+        conn.commit()
+    return {
+        "request_id": request_id,
+        "requirement_id": requirement_id,
+        "request_type": request_type,
+        "paths": paths,
+        "created_at": now,
+    }
+
+
+def create_file_content(
+    content_id: str,
+    requirement_id: str,
+    path: str,
+    content: str,
+) -> Dict[str, Any]:
+    now = _now_iso()
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO file_contents (id, requirement_id, path, content, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (content_id, requirement_id, path, content, now),
+        )
+        conn.commit()
+    return {
+        "content_id": content_id,
+        "requirement_id": requirement_id,
+        "path": path,
+        "created_at": now,
+    }
+
+
 def get_project_snapshot(snapshot_id: str) -> Optional[Dict[str, Any]]:
     with _connect() as conn:
         cur = conn.execute("SELECT * FROM project_snapshots WHERE id = ?", (snapshot_id,))
@@ -429,6 +500,7 @@ def _row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
         "answers_json",
         "details_json",
         "file_list_json",
+        "paths_json",
     ):
         if key in data and data[key]:
             try:
