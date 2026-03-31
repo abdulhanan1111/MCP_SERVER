@@ -11,6 +11,14 @@ class ExecutionService:
         plan = store.get_plan(plan_id)
         if not plan:
             return {"error": "Plan not found", "plan_id": plan_id}
+        approval = store.get_latest_approval(plan_id)
+        if not approval or not approval.get("approved"):
+            return {
+                "error": "Plan has not been approved",
+                "plan_id": plan_id,
+                "status": "blocked",
+                "reason": approval.get("feedback") if approval else "No approval record",
+            }
         exec_record = store.create_execution(
             str(uuid.uuid4()),
             plan_id,

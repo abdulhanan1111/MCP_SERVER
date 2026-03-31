@@ -1,9 +1,12 @@
+import os
 import uuid
 
 from app.config import settings
 from app.utils.logger import logger
 from app.utils import store
 
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
 
 class DeploymentService:
     @staticmethod
@@ -33,6 +36,12 @@ class DeploymentService:
         plan = store.get_plan(plan_id)
         if not plan:
             return {"error": "Plan not found", "plan_id": plan_id}
+        gate = DeploymentService.gate_deployment(plan_id)
+        if not gate.get("allowed"):
+            return {"error": "Deployment gate failed", "plan_id": plan_id, "reason": gate.get("reason")}
+        validations = DeploymentService.run_validations(plan_id)
+        if not validations.get("valid"):
+            return {"error": "Validations failed", "plan_id": plan_id, "checks": validations.get("checks")}
         environment = settings.DEFAULT_ENV
         record = store.create_deployment(
             str(uuid.uuid4()),
@@ -55,7 +64,10 @@ class DeploymentService:
         deployment = store.get_latest_deployment(plan_id)
         if not deployment:
             return {"plan_id": plan_id, "verified": False, "health_check": "not_deployed"}
-        return {"plan_id": plan_id, "verified": True, "health_check": "passed"}
+        status = deployment.get("status")
+        if status != "deployed":
+            return {"plan_id": plan_id, "verified": False, "health_check": "unknown", "status": status}
+        return {"plan_id": plan_id, "verified": True, "health_check": "passed", "status": status}
 
     @staticmethod
     def promote_or_stop_raw(plan_id: str, action: str) -> dict:
@@ -69,9 +81,17 @@ class DeploymentService:
 
 
 def _runtime_checks() -> list[dict]:
-    import os
     checks = []
-    checks.append({"check": "server.py exists", "ok": os.path.exists("mcp-server/server.py")})
-    checks.append({"check": "tools folder exists", "ok": os.path.isdir("mcp-server/app/tools")})
-    checks.append({"check": "services folder exists", "ok": os.path.isdir("mcp-server/app/services")})
+    checks.append({
+        "check": "server.py exists",
+        "ok": os.path.exists(os.path.join(BASE_DIR, "server.py")) or os.path.exists(os.path.join(PROJECT_ROOT, "mcp-server", "server.py")),
+    })
+    checks.append({
+        "check": "tools folder exists",
+        "ok": os.path.isdir(os.path.join(BASE_DIR, "app", "tools")) or os.path.isdir(os.path.join(PROJECT_ROOT, "mcp-server", "app", "tools")),
+    })
+    checks.append({
+        "check": "services folder exists",
+        "ok": os.path.isdir(os.path.join(BASE_DIR, "app", "services")) or os.path.isdir(os.path.join(PROJECT_ROOT, "mcp-server", "app", "services")),
+    })
     return checks

@@ -6,12 +6,16 @@ from typing import Any, Dict, Optional
 
 from app.config import settings
 
-DEFAULT_DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "mcp.db")
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+DEFAULT_DB_PATH = os.path.join(BASE_DIR, "app", "data", "mcp.db")
 
 def _resolve_db_path() -> str:
     env_path = getattr(settings, "DB_PATH", None)
-    path = env_path or DEFAULT_DB_PATH
-    return os.path.abspath(path)
+    if env_path:
+        if os.path.isabs(env_path):
+            return env_path
+        return os.path.abspath(os.path.join(BASE_DIR, env_path))
+    return os.path.abspath(DEFAULT_DB_PATH)
 
 
 def _ensure_db_dir(path: str) -> None:
@@ -142,6 +146,9 @@ def create_requirement(req_id: str, query: str, summary: str, complexity: str) -
 def update_requirement(req_id: str, **fields: Any) -> Optional[Dict[str, Any]]:
     if not fields:
         return get_requirement(req_id)
+    for key in ("components_json", "clarifications_json", "answers_json"):
+        if key in fields and fields[key] is not None and not isinstance(fields[key], str):
+            fields[key] = json.dumps(fields[key])
     fields["updated_at"] = _now_iso()
     columns = ", ".join([f"{k} = ?" for k in fields.keys()])
     values = list(fields.values()) + [req_id]
@@ -169,7 +176,7 @@ def save_answers(req_id: str, answers: Dict[str, Any]) -> Optional[Dict[str, Any
 
 
 def save_components(req_id: str, components: list[str]) -> Optional[Dict[str, Any]]:
-    return update_requirement(req_id, components_json=json.dumps(components))
+    return update_requirement(req_id, components_json=components)
 
 
 def create_plan(plan_id: str, requirement_id: str, components: list[str], steps: list[str]) -> Dict[str, Any]:

@@ -3,6 +3,7 @@ import uuid
 from app.config import settings
 from app.utils.logger import logger
 from app.utils import store
+from app.utils.llm import infer_universal
 
 
 class ReviewService:
@@ -37,7 +38,20 @@ class ReviewService:
     @staticmethod
     def detect_sensitive_change(diff: str) -> dict:
         logger.info("Detecting sensitive changes in diff")
-        sensitive_keywords = ["password", "secret", "token", "api_key", "private_key"]
+        sensitive_keywords = [
+            "password",
+            "secret",
+            "token",
+            "api_key",
+            "private_key",
+            "access_key",
+            "client_secret",
+            "bearer",
+            "credentials",
+            "ssh_key",
+            "auth_token",
+            "database_url",
+        ]
         found = [kw for kw in sensitive_keywords if kw in diff.lower()]
         return {
             "is_sensitive": len(found) > 0,
@@ -50,6 +64,14 @@ class ReviewService:
         plan = store.get_plan(plan_id)
         if not plan:
             return {"error": "Plan not found", "plan_id": plan_id}
+        latest = store.get_latest_approval(plan_id)
+        if latest:
+            return {
+                "plan_id": plan_id,
+                "approved": latest.get("approved"),
+                "feedback": latest.get("feedback") or "Existing approval found.",
+                "status": "existing",
+            }
         auto_approve = settings.AUTO_APPROVE
         if auto_approve:
             approved = True
@@ -66,10 +88,16 @@ class ReviewService:
 
 
 def _build_summary(requirement: dict | None, plan: dict) -> str:
-    req_summary = requirement.get("summary") if requirement else "No requirement summary available."
-    steps = plan.get("steps_json") or []
-    components = plan.get("components_json") or []
-    return f"{req_summary} Plan includes {len(steps)} steps focused on {', '.join(components)}."
+    query = requirement.get("query") if requirement else ""
+    llm_data = infer_universal(query)
+    steps = plan.get("steps_json") or llm_data.get("plan_steps") or []
+    steps_preview = "; ".join(steps[:3]) + ("..." if len(steps) > 3 else "")
+    return (
+        f"{llm_data.get('summary')} "
+        f"Change type: {llm_data.get('change_type')}. Complexity: {llm_data.get('complexity')}. "
+        f"Components: {', '.join(llm_data.get('components') or [])}. "
+        f"Key steps: {steps_preview}"
+    )
 
 
 def _build_diff_review(plan: dict) -> tuple[str, list[str], str, list[str]]:

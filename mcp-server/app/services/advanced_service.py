@@ -1,5 +1,6 @@
 from app.utils.logger import logger
 from app.utils import store
+from app.utils.llm import infer_universal
 
 
 class AdvancedService:
@@ -9,7 +10,9 @@ class AdvancedService:
         requirement = store.get_requirement(requirement_id)
         if not requirement:
             return {"error": "Requirement not found", "requirement_id": requirement_id}
-        context, domain = _infer_context(requirement.get("query", ""))
+        llm_data = infer_universal(requirement.get("query", ""))
+        context = llm_data.get("business_context")
+        domain = llm_data.get("domain")
         return {
             "requirement_id": requirement_id,
             "context": context,
@@ -22,7 +25,9 @@ class AdvancedService:
         plan = store.get_plan(plan_id)
         if not plan:
             return {"error": "Plan not found", "plan_id": plan_id}
-        tests = _tests_from_components(plan.get("components_json") or [])
+        requirement = store.get_requirement(plan.get("requirement_id"))
+        llm_data = infer_universal((requirement or {}).get("query", ""))
+        tests = llm_data.get("tests") or []
         return {
             "plan_id": plan_id,
             "tests_generated": tests,
@@ -39,36 +44,11 @@ class AdvancedService:
         policies = ["code_coverage", "naming_convention", "security_scan"]
         if risk == "High":
             policies.append("manual_security_review")
-        return {
+        response = {
             "plan_id": plan_id,
             "policy_passed": policy_passed,
             "policies_checked": policies,
         }
-
-
-def _infer_context(query: str) -> tuple[str, str]:
-    text = query.lower()
-    if any(word in text for word in ["b2b", "enterprise", "sso"]):
-        return "Enterprise B2B flow", "authentication"
-    if any(word in text for word in ["consumer", "mobile", "signup"]):
-        return "Consumer onboarding", "growth"
-    if any(word in text for word in ["billing", "invoice", "payment"]):
-        return "Payments and billing", "finance"
-    return "General product flow", "platform"
-
-
-def _tests_from_components(components: list[str]) -> list[str]:
-    tests = []
-    if "auth_module" in components:
-        tests.append("test_auth_module.py")
-    if "database_schema" in components:
-        tests.append("test_schema_migration.py")
-    if "api_gateway" in components:
-        tests.append("test_api_routes.py")
-    if "frontend" in components:
-        tests.append("test_ui_flows.py")
-    if "infrastructure" in components:
-        tests.append("test_deployment_pipeline.py")
-    if not tests:
-        tests.append("test_general_flow.py")
-    return tests
+        if risk == "Unknown":
+            response["warning"] = "Risk level not estimated. Run estimate_risk first."
+        return response
