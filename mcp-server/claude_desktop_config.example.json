@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "custom-mcp-server": {
+      "command": "python",
+      "args": ["E:/Abdul/AI_project/mcp-server/server.py"]
+    },
+    "aws-mcp": {
+      "command": "...",
+      "args": ["..."],
+      "_comment": "Your existing AWS MCP server config"
+    },
+    "github-mcp": {
+      "command": "...",
+      "args": ["..."],
+      "_comment": "Your existing GitHub MCP server config"
+    }
+  }
+}
