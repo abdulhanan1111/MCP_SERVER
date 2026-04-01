@@ -1,0 +1,33 @@
+﻿name: Deploy MCP Server
+
+on:
+  push:
+    branches: ["master"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      APP_DIR: /home/ubuntu/AI_project
+      SERVICE_NAME: mcp
+      PYTHON: python3
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            cd "$APP_DIR"
+            git pull
+            if [ ! -d "$APP_DIR/.venv" ]; then
+              $PYTHON -m venv "$APP_DIR/.venv"
+            fi
+            . "$APP_DIR/.venv/bin/activate"
+            python -m pip install --upgrade pip
+            pip install -r "$APP_DIR/mcp-server/requirements.txt"
+            sudo systemctl restart "$SERVICE_NAME"
+            sudo systemctl status "$SERVICE_NAME" --no-pager -l | head -n 50
