@@ -33,6 +33,10 @@ jobs:
             fi
             cd "$APP_DIR"
             git pull
+            if ! dpkg -s python3-venv >/dev/null 2>&1; then
+              sudo apt-get update -y
+              sudo apt-get install -y python3-venv
+            fi
             if [ ! -d "$APP_DIR/.venv" ]; then
               $PYTHON -m venv "$APP_DIR/.venv"
             fi
