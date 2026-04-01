@@ -37,8 +37,13 @@ jobs:
               sudo apt-get update -y
               sudo apt-get install -y python3-venv
             fi
-            if [ ! -d "$APP_DIR/.venv" ]; then
+            if [ ! -f "$APP_DIR/.venv/bin/activate" ]; then
+              rm -rf "$APP_DIR/.venv"
               $PYTHON -m venv "$APP_DIR/.venv"
+            fi
+            if [ ! -f "$APP_DIR/.venv/bin/activate" ]; then
+              echo "venv creation failed" >&2
+              exit 1
             fi
             . "$APP_DIR/.venv/bin/activate"
             python -m pip install --upgrade pip
