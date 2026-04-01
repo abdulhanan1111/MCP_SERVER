@@ -2,7 +2,7 @@
 
 on:
   push:
-    branches: ["master"]
+    branches: ["main", "master"]
   workflow_dispatch:
 
 jobs:
@@ -12,6 +12,7 @@ jobs:
       APP_DIR: /home/ubuntu/AI_project
       SERVICE_NAME: mcp
       PYTHON: python3
+      REPO_URL: https://github.com/abdulhanan1111/MCP_SERVER.git
     steps:
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -21,6 +22,10 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             set -e
+            if [ ! -d "$APP_DIR/.git" ]; then
+              mkdir -p "$APP_DIR"
+              git clone "$REPO_URL" "$APP_DIR"
+            fi
             cd "$APP_DIR"
             git pull
             if [ ! -d "$APP_DIR/.venv" ]; then
